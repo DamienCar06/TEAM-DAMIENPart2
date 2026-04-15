@@ -12,11 +12,17 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+/**
+ * Main application class for the Chess Phase 2 GUI application.
+ */
 public class ProjectP2 {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(ProjectP2::createAndShowGUI);
     }
 
+    /**
+     * Creates and displays the main GUI window.
+     */
     private static void createAndShowGUI() {
         JFrame frame = new JFrame("Chess Phase 2");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -32,6 +38,12 @@ public class ProjectP2 {
         frame.setVisible(true);
     }
 
+     /**
+     * Creates and configures the menu bar for the application.
+     *
+     * @param frame the main application frame
+     * @param boardPanel the chess board panel to control
+     */
     private static void createMenuBar(JFrame frame, BoardPanel boardPanel) {
         JMenuBar menuBar = new JMenuBar();
 
@@ -55,6 +67,12 @@ public class ProjectP2 {
         frame.setJMenuBar(menuBar);
     }
 
+     /**
+     * Handles the save game operation.
+     *
+     * @param frame the parent frame for the dialog
+     * @param boardPanel the chess board panel containing the game state
+     */
     private static void saveGame(JFrame frame, BoardPanel boardPanel) {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Save Game");
@@ -76,6 +94,12 @@ public class ProjectP2 {
         }
     }
 
+    /**
+     * Handles the load game operation.
+     *
+     * @param frame the parent frame for the dialog
+     * @param boardPanel the chess board panel to load the game into
+     */
     private static void loadGame(JFrame frame, BoardPanel boardPanel) {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Load Game");

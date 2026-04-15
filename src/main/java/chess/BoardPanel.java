@@ -30,6 +30,9 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.border.EmptyBorder;
 
+/**
+ *  A GUI panel representing the chess board.
+ */
 public class BoardPanel extends JPanel {
     private static final int BOARD_SIZE = 8;
     private static final int TILE_SIZE = 80;
@@ -54,6 +57,9 @@ public class BoardPanel extends JPanel {
     private Point dragLocation;
     private PieceColor currentTurn = PieceColor.WHITE;
 
+    /**
+     * Constructs a new chess board panel.
+     */
     public BoardPanel() {
         setPreferredSize(new Dimension(BOARD_SIZE * TILE_SIZE, BOARD_SIZE * TILE_SIZE));
         setBackground(Color.BLACK);
@@ -247,6 +253,11 @@ public class BoardPanel extends JPanel {
         return new Point(file, rank);
     }
 
+    /**
+     * Creates the side panel containing game information.
+     * Includes turn indicator, move history, captured pieces display, and control buttons.
+     * @return the side panel
+     */
     public JPanel createSidePanel() {
         JPanel sidePanel = new JPanel(new BorderLayout(10, 10));
         sidePanel.setBorder(new EmptyBorder(10, 10, 10, 10));
@@ -297,6 +308,12 @@ public class BoardPanel extends JPanel {
         return sidePanel;
     }
 
+    /**
+     * Saves the current game state to a file.
+     *
+     * @param filePath saved game file
+     * @return true if the save was successful, false otherwise
+     */
     public boolean saveGame(String filePath) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
             writer.write("CHESS_GAME_STATE\n");
@@ -335,6 +352,12 @@ public class BoardPanel extends JPanel {
         }
     }
 
+    /**
+     * Loads a saved game state from a file.
+     *
+     * @param filePath saved game file
+     * @return true if the load was successful, false otherwise
+     */
     public boolean loadGame(String filePath) {
         try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
             String line;
@@ -416,6 +439,9 @@ public class BoardPanel extends JPanel {
         }
     }
 
+    /**
+     * Resets the game to its initial state.
+     */
     public void resetGame() {
         initBoard();
         historyText.setText("");
@@ -442,12 +468,23 @@ public class BoardPanel extends JPanel {
         }
     }
 
+    /**
+     * Represents a chess move with its start and end point with the piece moved.
+     */
     private static class Move {
         final Point from;
         final Point to;
         final ChessPiece piece;
         final ChessPiece captured;
 
+        /**
+         * Constructs a new Move record.
+         *
+         * @param from the starting square
+         * @param to the ending square
+         * @param piece the piece being moved
+         * @param captured the piece being captured, or null
+         */
         Move(Point from, Point to, ChessPiece piece, ChessPiece captured) {
             this.from = new Point(from);
             this.to = new Point(to);
@@ -456,11 +493,21 @@ public class BoardPanel extends JPanel {
         }
     }
 
+    /**
+     * Represents the complete state of the game at a specific point, allowing to undo moves.
+     */
     private static class GameState {
         final ChessPiece[][] boardState;
         final Move move;
         final PieceColor turn;
 
+        /**
+         * Constructs a new GameState.
+         *
+         * @param board current board configuration
+         * @param move move made
+         * @param turn current player's turn
+         */
         GameState(ChessPiece[][] board, Move move, PieceColor turn) {
             this.boardState = deepCopyBoard(board);
             this.move = move;
