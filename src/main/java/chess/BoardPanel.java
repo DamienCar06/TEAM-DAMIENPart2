@@ -1,6 +1,7 @@
 package chess;
 
 import java.awt.AlphaComposite;
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -11,11 +12,20 @@ import java.awt.Point;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
 
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.border.EmptyBorder;
 
 public class BoardPanel extends JPanel {
     private static final int BOARD_SIZE = 8;
@@ -225,6 +235,183 @@ public class BoardPanel extends JPanel {
         int rank = point.y / TILE_SIZE;
         return new Point(file, rank);
     }
+
+    public JPanel createSidePanel() {
+        JPanel sidePanel = new JPanel(new BorderLayout(10, 10));
+        sidePanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+        sidePanel.setPreferredSize(new Dimension(260, BOARD_SIZE * TILE_SIZE));
+
+        turnLabel.setFont(turnLabel.getFont().deriveFont(Font.BOLD, 16f));
+        notificationLabel.setFont(notificationLabel.getFont().deriveFont(Font.PLAIN, 14f));
+        notificationLabel.setForeground(Color.DARK_GRAY);
+
+        historyText.setEditable(false);
+        historyText.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        historyText.setLineWrap(true);
+        historyText.setWrapStyleWord(true);
+
+        JScrollPane historyScroll = new JScrollPane(historyText);
+        historyScroll.setBorder(BorderFactory.createTitledBorder("Move History"));
+
+        JButton resetButton = new JButton("Reset Game");
+        resetButton.addActionListener(e -> resetGame());
+
+        sidePanel.add(turnLabel, BorderLayout.NORTH);
+        sidePanel.add(historyScroll, BorderLayout.CENTER);
+
+        JPanel bottomPanel = new JPanel(new BorderLayout(10, 10));
+        bottomPanel.add(notificationLabel, BorderLayout.NORTH);
+        bottomPanel.add(resetButton, BorderLayout.SOUTH);
+        sidePanel.add(bottomPanel, BorderLayout.SOUTH);
+
+        return sidePanel;
+    }
+
+    public boolean saveGame(String filePath) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+            writer.write("CHESS_GAME_STATE\n");
+            writer.write("BOARD_STATE\n");
+
+            for (int rank = 0; rank < BOARD_SIZE; rank++) {
+                StringBuilder line = new StringBuilder();
+                for (int file = 0; file < BOARD_SIZE; file++) {
+                    ChessPiece piece = board[rank][file];
+                    if (piece == null) {
+                        line.append(".");
+                    } else {
+                        char colorChar = piece.color == PieceColor.WHITE ? 'W' : 'B';
+                        line.append(colorChar).append(piece.type.shorthand);
+                    }
+                    if (file < BOARD_SIZE - 1) line.append(",");
+                }
+                writer.write(line.toString());
+                writer.newLine();
+            }
+
+            writer.write("CURRENT_TURN\n");
+            writer.write(currentTurn == PieceColor.WHITE ? "W" : "B");
+            writer.newLine();
+
+            writer.write("MOVE_HISTORY\n");
+            writer.write(historyText.getText());
+            writer.newLine();
+
+            writer.write("END_GAME_STATE\n");
+
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public boolean loadGame(String filePath) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+
+            line = reader.readLine();
+            if (line == null || !line.equals("CHESS_GAME_STATE")) {
+                return false;
+            }
+
+            line = reader.readLine();
+            if (line == null || !line.equals("BOARD_STATE")) {
+                return false;
+            }
+
+            clearBoard();
+
+            for (int rank = 0; rank < BOARD_SIZE; rank++) {
+                line = reader.readLine();
+                if (line == null) {
+                    return false;
+                }
+                String[] squares = line.split(",");
+                if (squares.length != BOARD_SIZE) {
+                    return false;
+                }
+
+                for (int file = 0; file < BOARD_SIZE; file++) {
+                    String square = squares[file].trim();
+                    if (!square.equals(".")) {
+                        char colorChar = square.charAt(0);
+                        String typeStr = square.substring(1);
+                        PieceColor color = colorChar == 'W' ? PieceColor.WHITE : PieceColor.BLACK;
+                        PieceType type = shorthandToPieceType(typeStr);
+                        if (type != null) {
+                            board[rank][file] = new ChessPiece(type, color);
+                        }
+                    }
+                }
+            }
+
+            line = reader.readLine();
+            if (line == null || !line.equals("CURRENT_TURN")) {
+                return false;
+            }
+
+            line = reader.readLine();
+            if (line == null) {
+                return false;
+            }
+            currentTurn = line.trim().equals("W") ? PieceColor.WHITE : PieceColor.BLACK;
+
+            line = reader.readLine();
+            if (line == null || !line.equals("MOVE_HISTORY")) {
+                return false;
+            }
+
+            StringBuilder historyBuilder = new StringBuilder();
+            line = reader.readLine();
+            while (line != null && !line.equals("END_GAME_STATE")) {
+                historyBuilder.append(line).append("\n");
+                line = reader.readLine();
+            }
+
+            selectedSquare = null;
+            lastFrom = null;
+            lastTo = null;
+            dragPiece = null;
+            dragLocation = null;
+
+            historyText.setText(historyBuilder.toString());
+            notificationLabel.setText("Game loaded.");
+            updateTurnLabel();
+            repaint();
+
+            return true;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public void resetGame() {
+        initBoard();
+        historyText.setText("");
+        notificationLabel.setText("New game started.");
+        repaint();
+    }
+
+    private static PieceType shorthandToPieceType(String shorthand) {
+        switch (shorthand) {
+            case "K":
+                return PieceType.KING;
+            case "Q":
+                return PieceType.QUEEN;
+            case "R":
+                return PieceType.ROOK;
+            case "B":
+                return PieceType.BISHOP;
+            case "N":
+                return PieceType.KNIGHT;
+            case "P":
+                return PieceType.PAWN;
+            default:
+                return null;
+        }
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
