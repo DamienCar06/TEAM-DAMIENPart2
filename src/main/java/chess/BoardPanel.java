@@ -17,6 +17,9 @@ import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Stack;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -39,6 +42,10 @@ public class BoardPanel extends JPanel {
     private final JLabel turnLabel = new JLabel();
     private final JTextArea historyText = new JTextArea();
     private final JLabel notificationLabel = new JLabel(" ");
+    private final Stack<GameState> moveHistory = new Stack<>();
+    private final List<ChessPiece> whiteCaptured = new ArrayList<>();
+    private final List<ChessPiece> blackCaptured = new ArrayList<>();
+    private final JTextArea capturedText = new JTextArea();
 
     private Point selectedSquare;
     private Point lastFrom;
@@ -180,15 +187,19 @@ public class BoardPanel extends JPanel {
 
     private void executeMove(Point from, Point to, ChessPiece movingPiece) {
         ChessPiece targetPiece = board[to.y][to.x];
-        if (targetPiece != null && targetPiece.color == movingPiece.color) {
-            notificationLabel.setText("Cannot capture your own piece.");
-            board[from.y][from.x] = movingPiece;
-            return;
-        }
+        Move move = new Move(from, to, movingPiece, targetPiece);
+        GameState state = new GameState(board, move, currentTurn);
+        moveHistory.push(state);
 
         String moveNotation = formatMoveNotation(movingPiece, from, to, targetPiece != null);
         if (targetPiece != null) {
             notificationLabel.setText(movingPiece.getName() + " captures " + targetPiece.getName() + ".");
+            if (targetPiece.color == PieceColor.WHITE) {
+                whiteCaptured.add(targetPiece);
+            } else {
+                blackCaptured.add(targetPiece);
+            }
+            updateCapturedDisplay();
         } else {
             notificationLabel.setText(movingPiece.getName() + " moved.");
         }
@@ -239,29 +250,48 @@ public class BoardPanel extends JPanel {
     public JPanel createSidePanel() {
         JPanel sidePanel = new JPanel(new BorderLayout(10, 10));
         sidePanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-        sidePanel.setPreferredSize(new Dimension(260, BOARD_SIZE * TILE_SIZE));
+        sidePanel.setPreferredSize(new Dimension(300, BOARD_SIZE * TILE_SIZE));
 
         turnLabel.setFont(turnLabel.getFont().deriveFont(Font.BOLD, 16f));
         notificationLabel.setFont(notificationLabel.getFont().deriveFont(Font.PLAIN, 14f));
         notificationLabel.setForeground(Color.DARK_GRAY);
 
         historyText.setEditable(false);
-        historyText.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        historyText.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
         historyText.setLineWrap(true);
         historyText.setWrapStyleWord(true);
+
+        capturedText.setEditable(false);
+        capturedText.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        capturedText.setLineWrap(true);
+        capturedText.setWrapStyleWord(true);
 
         JScrollPane historyScroll = new JScrollPane(historyText);
         historyScroll.setBorder(BorderFactory.createTitledBorder("Move History"));
 
+        JScrollPane capturedScroll = new JScrollPane(capturedText);
+        capturedScroll.setBorder(BorderFactory.createTitledBorder("Captured Pieces"));
+        capturedScroll.setPreferredSize(new Dimension(280, 120));
+
         JButton resetButton = new JButton("Reset Game");
         resetButton.addActionListener(e -> resetGame());
 
+        JButton undoButton = new JButton("Undo Move");
+        undoButton.addActionListener(e -> undoMove());
+
+        JPanel buttonPanel = new JPanel(new BorderLayout(5, 5));
+        buttonPanel.add(undoButton, BorderLayout.WEST);
+        buttonPanel.add(resetButton, BorderLayout.EAST);
+
         sidePanel.add(turnLabel, BorderLayout.NORTH);
-        sidePanel.add(historyScroll, BorderLayout.CENTER);
+        JPanel centerPanel = new JPanel(new BorderLayout(10, 10));
+        centerPanel.add(historyScroll, BorderLayout.CENTER);
+        centerPanel.add(capturedScroll, BorderLayout.SOUTH);
+        sidePanel.add(centerPanel, BorderLayout.CENTER);
 
         JPanel bottomPanel = new JPanel(new BorderLayout(10, 10));
         bottomPanel.add(notificationLabel, BorderLayout.NORTH);
-        bottomPanel.add(resetButton, BorderLayout.SOUTH);
+        bottomPanel.add(buttonPanel, BorderLayout.SOUTH);
         sidePanel.add(bottomPanel, BorderLayout.SOUTH);
 
         return sidePanel;
@@ -410,6 +440,96 @@ public class BoardPanel extends JPanel {
             default:
                 return null;
         }
+    }
+
+    private static class Move {
+        final Point from;
+        final Point to;
+        final ChessPiece piece;
+        final ChessPiece captured;
+
+        Move(Point from, Point to, ChessPiece piece, ChessPiece captured) {
+            this.from = new Point(from);
+            this.to = new Point(to);
+            this.piece = piece;
+            this.captured = captured;
+        }
+    }
+
+    private static class GameState {
+        final ChessPiece[][] boardState;
+        final Move move;
+        final PieceColor turn;
+
+        GameState(ChessPiece[][] board, Move move, PieceColor turn) {
+            this.boardState = deepCopyBoard(board);
+            this.move = move;
+            this.turn = turn;
+        }
+
+        private static ChessPiece[][] deepCopyBoard(ChessPiece[][] original) {
+            ChessPiece[][] copy = new ChessPiece[original.length][original[0].length];
+            for (int i = 0; i < original.length; i++) {
+                for (int j = 0; j < original[i].length; j++) {
+                    copy[i][j] = original[i][j];
+                }
+            }
+            return copy;
+        }
+    }
+
+    private void updateCapturedDisplay() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("White Captured:\n");
+        for (ChessPiece piece : blackCaptured) {
+            sb.append(piece.type.shorthand).append(" ");
+        }
+        sb.append("\n\nBlack Captured:\n");
+        for (ChessPiece piece : whiteCaptured) {
+            sb.append(piece.type.shorthand).append(" ");
+        }
+        capturedText.setText(sb.toString());
+    }
+
+    private void undoMove() {
+        if (moveHistory.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No moves to undo.", "Undo", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        GameState previousState = moveHistory.pop();
+        Move lastMove = previousState.move;
+
+        for (int i = 0; i < BOARD_SIZE; i++) {
+            for (int j = 0; j < BOARD_SIZE; j++) {
+                board[i][j] = previousState.boardState[i][j];
+            }
+        }
+
+        if (lastMove.captured != null) {
+            if (lastMove.captured.color == PieceColor.WHITE) {
+                whiteCaptured.remove(lastMove.captured);
+            } else {
+                blackCaptured.remove(lastMove.captured);
+            }
+            updateCapturedDisplay();
+        }
+
+        currentTurn = previousState.turn;
+        lastFrom = null;
+        lastTo = null;
+        selectedSquare = null;
+        dragPiece = null;
+        dragLocation = null;
+
+        historyText.setText("");
+        for (GameState state : moveHistory) {
+            appendHistory(formatMoveNotation(state.move.piece, state.move.from, state.move.to, state.move.captured != null));
+        }
+
+        notificationLabel.setText("Move undone.");
+        updateTurnLabel();
+        repaint();
     }
 
     @Override
