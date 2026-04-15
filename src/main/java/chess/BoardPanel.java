@@ -1,5 +1,6 @@
 package chess;
 
+import java.awt.AlphaComposite;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -8,8 +9,11 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.RenderingHints;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
 
@@ -38,6 +42,8 @@ public class BoardPanel extends JPanel {
         setBackground(Color.BLACK);
         setFocusable(true);
         initBoard();
+        configureMouseControls();
+        updateTurnLabel();
     }
 
     private void initBoard() {
@@ -75,6 +81,150 @@ public class BoardPanel extends JPanel {
         }
     }
 
+    private void configureMouseControls() {
+        MouseAdapter mouseAdapter = new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                Point square = pointToSquare(e.getPoint());
+                if (!squareInBounds(square)) {
+                    return;
+                }
+                ChessPiece piece = board[square.y][square.x];
+                if (piece == null || piece.color != currentTurn) {
+                    return;
+                }
+                selectedSquare = square;
+                dragPiece = piece;
+                board[square.y][square.x] = null;
+                dragLocation = e.getPoint();
+                repaint();
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (dragPiece == null) {
+                    return;
+                }
+                Point target = pointToSquare(e.getPoint());
+                if (!squareInBounds(target)) {
+                    board[selectedSquare.y][selectedSquare.x] = dragPiece;
+                    dragPiece = null;
+                    repaint();
+                    return;
+                }
+                if (target.equals(selectedSquare)) {
+                    board[selectedSquare.y][selectedSquare.x] = dragPiece;
+                } else {
+                    executeMove(selectedSquare, target, dragPiece);
+                }
+                dragPiece = null;
+                dragLocation = null;
+                selectedSquare = null;
+                repaint();
+            }
+
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (dragPiece != null) {
+                    return;
+                }
+                Point square = pointToSquare(e.getPoint());
+                if (!squareInBounds(square)) {
+                    return;
+                }
+                if (selectedSquare == null) {
+                    ChessPiece piece = board[square.y][square.x];
+                    if (piece != null && piece.color == currentTurn) {
+                        selectedSquare = square;
+                        notificationLabel.setText("Piece selected. Click destination square.");
+                        repaint();
+                    }
+                } else {
+                    if (selectedSquare.equals(square)) {
+                        selectedSquare = null;
+                        notificationLabel.setText("Click a piece to move.");
+                        repaint();
+                        return;
+                    }
+                    ChessPiece piece = board[selectedSquare.y][selectedSquare.x];
+                    if (piece != null) {
+                        executeMove(selectedSquare, square, piece);
+                    }
+                    selectedSquare = null;
+                    repaint();
+                }
+            }
+
+            @Override
+            public void mouseDragged(MouseEvent e) {
+                if (dragPiece != null) {
+                    dragLocation = e.getPoint();
+                    repaint();
+                }
+            }
+        };
+
+        addMouseListener(mouseAdapter);
+        addMouseMotionListener(mouseAdapter);
+    }
+
+    private void executeMove(Point from, Point to, ChessPiece movingPiece) {
+        ChessPiece targetPiece = board[to.y][to.x];
+        if (targetPiece != null && targetPiece.color == movingPiece.color) {
+            notificationLabel.setText("Cannot capture your own piece.");
+            board[from.y][from.x] = movingPiece;
+            return;
+        }
+
+        String moveNotation = formatMoveNotation(movingPiece, from, to, targetPiece != null);
+        if (targetPiece != null) {
+            notificationLabel.setText(movingPiece.getName() + " captures " + targetPiece.getName() + ".");
+        } else {
+            notificationLabel.setText(movingPiece.getName() + " moved.");
+        }
+
+        board[from.y][from.x] = null;
+        board[to.y][to.x] = movingPiece;
+        lastFrom = new Point(from);
+        lastTo = new Point(to);
+        appendHistory(moveNotation);
+
+        if (targetPiece != null && targetPiece.type == PieceType.KING) {
+            String winner = movingPiece.color == PieceColor.WHITE ? "White" : "Black";
+            JOptionPane.showMessageDialog(this, winner + " wins by capturing the king!", "Game Over", JOptionPane.INFORMATION_MESSAGE);
+            System.exit(0);
+        }
+
+        currentTurn = currentTurn.opposite();
+        updateTurnLabel();
+    }
+
+    private String formatMoveNotation(ChessPiece piece, Point from, Point to, boolean capture) {
+        String colFrom = String.valueOf((char) ('a' + from.x));
+        String rowFrom = String.valueOf(8 - from.y);
+        String colTo = String.valueOf((char) ('a' + to.x));
+        String rowTo = String.valueOf(8 - to.y);
+        return (piece.color == PieceColor.WHITE ? "W" : "B") + " " + piece.type.shorthand + ": " + colFrom + rowFrom + (capture ? "x" : "-") + colTo + rowTo;
+    }
+
+    private void updateTurnLabel() {
+        turnLabel.setText((currentTurn == PieceColor.WHITE ? "White" : "Black") + " to move");
+    }
+
+    private void appendHistory(String text) {
+        historyText.append(text + "\n");
+        historyText.setCaretPosition(historyText.getDocument().getLength());
+    }
+
+    private boolean squareInBounds(Point square) {
+        return square.x >= 0 && square.x < BOARD_SIZE && square.y >= 0 && square.y < BOARD_SIZE;
+    }
+    
+    private Point pointToSquare(Point point) {
+        int file = point.x / TILE_SIZE;
+        int rank = point.y / TILE_SIZE;
+        return new Point(file, rank);
+    }
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -82,7 +232,7 @@ public class BoardPanel extends JPanel {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         drawBoard(g2);
         drawPieces(g2);
-        //drawDragPiece(g2);
+        drawDragPiece(g2);
         g2.dispose();
     }
 
@@ -134,5 +284,20 @@ public class BoardPanel extends JPanel {
                 }
             }
         }
+    }
+
+    private void drawDragPiece(Graphics2D g2) {
+        if (dragPiece == null || dragLocation == null) {
+            return;
+        }
+        int x = dragLocation.x - TILE_SIZE / 2;
+        int y = dragLocation.y - TILE_SIZE / 2;
+        g2.setFont(new Font(Font.SERIF, Font.PLAIN, 42));
+        g2.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.75f));
+        Point square = pointToSquare(dragLocation);
+        boolean lightSquare = (square.y + square.x) % 2 == 0;
+        g2.setColor(lightSquare ? Color.BLACK : Color.WHITE);
+        FontMetrics metrics = g2.getFontMetrics();
+        g2.drawString(dragPiece.getGlyph(), x + (TILE_SIZE - metrics.stringWidth(dragPiece.getGlyph())) / 2, y + ((TILE_SIZE - metrics.getHeight()) / 2) + metrics.getAscent());
     }
 }
