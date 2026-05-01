@@ -106,4 +106,15 @@ public class ChessPieceLogic {
 
         return false;
     }
+
+    private static boolean isValidKingMove(int dx, int dy) {
+        int absDx = Math.abs(dx);
+        int absDy = Math.abs(dy);
+
+        if (absDx <= 1 && absDy <= 1) {
+            return true;
+        }
+
+        return false;
+    }
 }
