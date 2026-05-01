@@ -172,8 +172,11 @@ public class BoardPanel extends JPanel {
                         return;
                     }
                     ChessPiece piece = board[selectedSquare.y][selectedSquare.x];
-                    if (piece != null) {
+                    if (ChessPieceLogic.isValidMove(board, selectedSquare, square, piece, currentTurn, enPassantTarget)) {
                         executeMove(selectedSquare, square, piece);
+                    }
+                    else{
+                        notificationLabel.setText("Invalid move. Try again.");
                     }
                     selectedSquare = null;
                     repaint();
@@ -194,9 +197,13 @@ public class BoardPanel extends JPanel {
     }
 
     private void executeMove(Point from, Point to, ChessPiece movingPiece) {
+        if (!ChessPieceLogic.isValidMove(board, from, to, movingPiece, currentTurn, enPassantTarget)) {
+            notificationLabel.setText("Invalid move. Try again.");
+            return;
+        }
         ChessPiece targetPiece = board[to.y][to.x];
         Move move = new Move(from, to, movingPiece, targetPiece);
-        GameState state = new GameState(board, move, currentTurn);
+        GameState state = new GameState(board, move, currentTurn, castlingRights, enPassantTarget);
         moveHistory.push(state);
 
         String moveNotation = formatMoveNotation(movingPiece, from, to, targetPiece != null);
