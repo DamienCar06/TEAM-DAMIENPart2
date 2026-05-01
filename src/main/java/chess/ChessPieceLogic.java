@@ -1,6 +1,10 @@
 package chess;
 
 import java.awt.Point;
+import java.util.List;
+
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 
 public class ChessPieceLogic {
     private static final int BOARD_SIZE = 8;
@@ -318,5 +322,54 @@ public class ChessPieceLogic {
         }
 
         return true;
+    }
+
+    public static void handleSpecialMoves(ChessPiece[][] board, Point from, Point to, ChessPiece piece,
+                                        Point enPassantTarget, List<ChessPiece> whiteCaptured,
+                                        List<ChessPiece> blackCaptured) {
+        if (piece.type == PieceType.KING && Math.abs(to.x - from.x) == 2) {
+            int rookFromFile = to.x > from.x ? 7 : 0;
+            int rookToFile = to.x > from.x ? 5 : 3;
+            ChessPiece rook = board[from.y][rookFromFile];
+            board[from.y][rookFromFile] = null;
+            board[from.y][rookToFile] = rook;
+        }
+
+        if (piece.type == PieceType.PAWN && to.equals(enPassantTarget)) {
+            int capturedPawnRank = piece.color == PieceColor.WHITE ? to.y + 1 : to.y - 1;
+            ChessPiece capturedPawn = board[capturedPawnRank][to.x];
+            if (capturedPawn != null && capturedPawn.color != piece.color) {
+                board[capturedPawnRank][to.x] = null;
+                if (capturedPawn.color == PieceColor.WHITE) {
+                    whiteCaptured.add(capturedPawn);
+                } else {
+                    blackCaptured.add(capturedPawn);
+                }
+            }
+        }
+    }
+
+    public static void promotePawn(ChessPiece[][] board, Point position, JPanel parent) {
+        ChessPiece pawn = board[position.y][position.x];
+        if (pawn.type != PieceType.PAWN) {
+            return;
+        }
+
+        PieceType[] options = {PieceType.QUEEN, PieceType.ROOK, PieceType.BISHOP, PieceType.KNIGHT};
+        String[] optionNames = {"Queen", "Rook", "Bishop", "Knight"};
+
+        int choice = JOptionPane.showOptionDialog(
+            parent,
+            "Choose promotion piece:",
+            "Pawn Promotion",
+            JOptionPane.DEFAULT_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            optionNames,
+            optionNames[0]
+        );
+
+        PieceType promotionType = (choice >= 0 && choice < options.length) ? options[choice] : PieceType.QUEEN;
+        board[position.y][position.x] = new ChessPiece(promotionType, pawn.color);
     }
 }
