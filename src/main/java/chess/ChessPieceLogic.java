@@ -246,4 +246,77 @@ public class ChessPieceLogic {
     private static boolean squareInBounds(Point square) {
         return square.x >= 0 && square.x < BOARD_SIZE && square.y >= 0 && square.y < BOARD_SIZE;
     }
+
+    public static boolean isValidMove(ChessPiece[][] board, Point from, Point to, ChessPiece piece,
+                                     PieceColor currentTurn, Point enPassantTarget) {
+        if (!squareInBounds(from) || !squareInBounds(to)) {
+            return false;
+        }
+        if (from.equals(to)) {
+            return false;
+        }
+        if (board[to.y][to.x] != null && board[to.y][to.x].color == piece.color) {
+            return false;
+        }
+
+        if (!isValidPieceMove(board, from, to, piece)) {
+            return false;
+        }
+
+        if (wouldPutKingInCheck(board, from, to, piece)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public static boolean isCheckmate(ChessPiece[][] board, PieceColor color, Point enPassantTarget) {
+        if (!isKingInCheck(board, color)) {
+            return false;
+        }
+
+        for (int fromRank = 0; fromRank < BOARD_SIZE; fromRank++) {
+            for (int fromFile = 0; fromFile < BOARD_SIZE; fromFile++) {
+                ChessPiece piece = board[fromRank][fromFile];
+                if (piece != null && piece.color == color) {
+                    for (int toRank = 0; toRank < BOARD_SIZE; toRank++) {
+                        for (int toFile = 0; toFile < BOARD_SIZE; toFile++) {
+                            Point from = new Point(fromFile, fromRank);
+                            Point to = new Point(toFile, toRank);
+                            if (isValidMove(board, from, to, piece, color, enPassantTarget)) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    public static boolean isStalemate(ChessPiece[][] board, PieceColor color, Point enPassantTarget) {
+        if (isKingInCheck(board, color)) {
+            return false;
+        }
+
+        for (int fromRank = 0; fromRank < BOARD_SIZE; fromRank++) {
+            for (int fromFile = 0; fromFile < BOARD_SIZE; fromFile++) {
+                ChessPiece piece = board[fromRank][fromFile];
+                if (piece != null && piece.color == color) {
+                    for (int toRank = 0; toRank < BOARD_SIZE; toRank++) {
+                        for (int toFile = 0; toFile < BOARD_SIZE; toFile++) {
+                            Point from = new Point(fromFile, fromRank);
+                            Point to = new Point(toFile, toRank);
+                            if (isValidMove(board, from, to, piece, color, enPassantTarget)) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
 }
