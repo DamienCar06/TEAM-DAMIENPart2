@@ -84,4 +84,15 @@ public class ChessPieceLogic {
         int absDy = Math.abs(dy);
         return (absDx == 2 && absDy == 1) || (absDx == 1 && absDy == 2);
     }
+
+    private static boolean isValidBishopMove(ChessPiece[][] board, Point from, Point to) {
+        int dx = Math.abs(to.x - from.x);
+        int dy = Math.abs(to.y - from.y);
+
+        if (dx != dy) {
+            return false;
+        }
+
+        return isPathClear(board, from, to);
+    }
 }
