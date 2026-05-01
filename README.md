@@ -5,3 +5,6 @@ This is a Chess Game GUI built with Java Swing. It displays an 8x8 chessboard wi
 Features:
 - Includes a game panel that keeps track of piece moves, captured pieces, and ability to reset game or undo move
 - Includes a menu bar on the top left of the board that allows you to create a new game, save game, and load game
+- Include piece logic for pawn, rook, bishop, knight, king, queen
+- Include check, checkmate, and stalemate conditions for the chess game
+- Includes additional moves of castling and enPassant to the game
