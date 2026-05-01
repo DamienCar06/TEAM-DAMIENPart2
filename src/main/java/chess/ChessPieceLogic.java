@@ -49,4 +49,33 @@ public class ChessPieceLogic {
 
         return false;
     }
+
+    private static boolean isValidRookMove(ChessPiece[][] board, Point from, Point to) {
+        int dx = Math.abs(to.x - from.x);
+        int dy = Math.abs(to.y - from.y);
+
+        if (dx != 0 && dy != 0) {
+            return false;
+        }
+
+        return isPathClear(board, from, to);
+    }
+
+    private static boolean isPathClear(ChessPiece[][] board, Point from, Point to) {
+        int dx = Integer.compare(to.x - from.x, 0);
+        int dy = Integer.compare(to.y - from.y, 0);
+
+        int x = from.x + dx;
+        int y = from.y + dy;
+
+        while (x != to.x || y != to.y) {
+            if (board[y][x] != null) {
+                return false;
+            }
+            x += dx;
+            y += dy;
+        }
+
+        return true;
+    }
 }
