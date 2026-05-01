@@ -57,6 +57,8 @@ public class BoardPanel extends JPanel {
     private Point dragLocation;
     private PieceColor currentTurn = PieceColor.WHITE;
 
+    private Point enPassantTarget = null;
+    private final boolean[] castlingRights = new boolean[6];
     /**
      * Constructs a new chess board panel.
      */
@@ -500,18 +502,23 @@ public class BoardPanel extends JPanel {
         final ChessPiece[][] boardState;
         final Move move;
         final PieceColor turn;
-
+        final boolean[] castlingRights;
+        final Point enPassantTarget;
         /**
          * Constructs a new GameState.
          *
          * @param board current board configuration
          * @param move move made
          * @param turn current player's turn
+         * @param castlingRights current castling rights
+         * @param enPassantTarget current en passant target square
          */
-        GameState(ChessPiece[][] board, Move move, PieceColor turn) {
+        GameState(ChessPiece[][] board, Move move, PieceColor turn, boolean[] castlingRights, Point enPassantTarget) {
             this.boardState = deepCopyBoard(board);
             this.move = move;
             this.turn = turn;
+            this.castlingRights = castlingRights.clone();
+            this.enPassantTarget = enPassantTarget != null ? new Point(enPassantTarget) : null;
         }
 
         private static ChessPiece[][] deepCopyBoard(ChessPiece[][] original) {
