@@ -168,7 +168,7 @@ public class ChessPieceLogic {
 
         return false;
     }
-    
+
     private static boolean wouldPutKingInCheck(ChessPiece[][] board, Point from, Point to, ChessPiece piece) {
         // Simulate the move
         ChessPiece capturedPiece = board[to.y][to.x];
@@ -182,5 +182,68 @@ public class ChessPieceLogic {
         board[to.y][to.x] = capturedPiece;
 
         return inCheck;
+    }
+
+    public static boolean canCastle(ChessPiece[][] board, boolean kingside, PieceColor color,
+                                   boolean kingMoved, boolean kingsideRookMoved, boolean queensideRookMoved) {
+        int rank = color == PieceColor.WHITE ? 7 : 0;
+
+        if (kingMoved) {
+            return false;
+        }
+
+        boolean rookMoved = kingside ? kingsideRookMoved : queensideRookMoved;
+        if (rookMoved) {
+            return false;
+        }
+
+        int startFile = 4;
+        int endFile = kingside ? 7 : 0;
+        int step = kingside ? 1 : -1;
+
+        for (int file = startFile + step; file != endFile; file += step) {
+            if (board[rank][file] != null) {
+                return false;
+            }
+        }
+
+        Point kingPos = new Point(4, rank);
+        for (int checkFile = startFile; checkFile != (kingside ? 7 : 0); checkFile += step) {
+            Point checkPos = new Point(checkFile, rank);
+            if (isSquareAttacked(board, checkPos, color.opposite())) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static void updateCastlingRights(Point from, ChessPiece piece,
+                                          boolean[] castlingRights) {
+        if (piece.type == PieceType.KING) {
+            if (piece.color == PieceColor.WHITE) {
+                castlingRights[0] = true;
+            } else {
+                castlingRights[1] = true;
+            }
+        } else if (piece.type == PieceType.ROOK) {
+            if (piece.color == PieceColor.WHITE) {
+                if (from.x == 0) {
+                    castlingRights[4] = true;
+                } else if (from.x == 7) {
+                    castlingRights[2] = true;
+                }
+            } else {
+                if (from.x == 0) {
+                    castlingRights[5] = true;
+                } else if (from.x == 7) {
+                    castlingRights[3] = true;
+                }
+            }
+        }
+    }
+
+    private static boolean squareInBounds(Point square) {
+        return square.x >= 0 && square.x < BOARD_SIZE && square.y >= 0 && square.y < BOARD_SIZE;
     }
 }
