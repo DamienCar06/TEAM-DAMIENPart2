@@ -78,7 +78,10 @@ public class BoardPanel extends JPanel {
         lastFrom = null;
         lastTo = null;
         notificationLabel.setText("Click a piece to move.");
-
+        for (int i = 0; i < castlingRights.length; i++) {
+            castlingRights[i] = false;
+        }
+        enPassantTarget = null;
         PieceType[] backRank = {
             PieceType.ROOK,
             PieceType.KNIGHT,
@@ -137,10 +140,11 @@ public class BoardPanel extends JPanel {
                     repaint();
                     return;
                 }
-                if (target.equals(selectedSquare)) {
-                    board[selectedSquare.y][selectedSquare.x] = dragPiece;
-                } else {
+                else if (ChessPieceLogic.isValidMove(board, selectedSquare, target, dragPiece, currentTurn, enPassantTarget)) {
                     executeMove(selectedSquare, target, dragPiece);
+                } else {
+                    board[selectedSquare.y][selectedSquare.x] = dragPiece;
+                    notificationLabel.setText("Invalid move. Try again.");
                 }
                 dragPiece = null;
                 dragLocation = null;
@@ -225,9 +229,27 @@ public class BoardPanel extends JPanel {
         lastTo = new Point(to);
         appendHistory(moveNotation);
 
-        if (targetPiece != null && targetPiece.type == PieceType.KING) {
-            String winner = movingPiece.color == PieceColor.WHITE ? "White" : "Black";
-            JOptionPane.showMessageDialog(this, winner + " wins by capturing the king!", "Game Over", JOptionPane.INFORMATION_MESSAGE);
+        ChessPieceLogic.handleSpecialMoves(board, from, to, movingPiece, enPassantTarget, whiteCaptured, blackCaptured);
+
+        ChessPieceLogic.updateCastlingRights(from, movingPiece, castlingRights);
+
+        enPassantTarget = null;
+
+        if (movingPiece.type == PieceType.PAWN && Math.abs(to.y - from.y) == 2) {
+            enPassantTarget = new Point(to.x, (from.y + to.y) / 2);
+        }
+
+        if (movingPiece.type == PieceType.PAWN && (to.y == 0 || to.y == 7)) {
+            ChessPieceLogic.promotePawn(board, to, this);
+            notificationLabel.setText("Pawn promoted!");
+        }
+
+        if (ChessPieceLogic.isCheckmate(board, currentTurn.opposite(), enPassantTarget)) {
+            String winner = currentTurn == PieceColor.WHITE ? "White" : "Black";
+            JOptionPane.showMessageDialog(this, winner + " wins by checkmate!", "Game Over", JOptionPane.INFORMATION_MESSAGE);
+            System.exit(0);
+        } else if (ChessPieceLogic.isStalemate(board, currentTurn.opposite(), enPassantTarget)) {
+            JOptionPane.showMessageDialog(this, "Stalemate! The game is a draw.", "Game Over", JOptionPane.INFORMATION_MESSAGE);
             System.exit(0);
         }
 
@@ -348,6 +370,21 @@ public class BoardPanel extends JPanel {
             writer.write(currentTurn == PieceColor.WHITE ? "W" : "B");
             writer.newLine();
 
+            writer.write("CASTLING_RIGHTS\n");
+            for (boolean right : castlingRights) {
+                writer.write(right ? "1" : "0");
+            }
+            writer.newLine();
+
+            writer.write("EN_PASSANT\n");
+            if (enPassantTarget != null) {
+                writer.write((char)('a' + enPassantTarget.x));
+                writer.write(String.valueOf(8 - enPassantTarget.y));
+            } else {
+                writer.write("-");
+            }
+            writer.newLine();
+
             writer.write("MOVE_HISTORY\n");
             writer.write(historyText.getText());
             writer.newLine();
@@ -417,6 +454,36 @@ public class BoardPanel extends JPanel {
                 return false;
             }
             currentTurn = line.trim().equals("W") ? PieceColor.WHITE : PieceColor.BLACK;
+            
+            line = reader.readLine();
+            if (line == null || !line.equals("CASTLING_RIGHTS")) {
+                return false;
+            }
+
+            line = reader.readLine();
+            if (line == null || line.length() != 6) {
+                return false;
+            }
+            for (int i = 0; i < 6; i++) {
+                castlingRights[i] = line.charAt(i) == '1';
+            }
+
+            line = reader.readLine();
+            if (line == null || !line.equals("EN_PASSANT")) {
+                return false;
+            }
+
+            line = reader.readLine();
+            if (line == null) {
+                return false;
+            }
+            if (!line.trim().equals("-")) {
+                int file = line.charAt(0) - 'a';
+                int rank = 8 - (line.charAt(1) - '0');
+                enPassantTarget = new Point(file, rank);
+            } else {
+                enPassantTarget = null;
+            }
 
             line = reader.readLine();
             if (line == null || !line.equals("MOVE_HISTORY")) {
@@ -435,10 +502,12 @@ public class BoardPanel extends JPanel {
             lastTo = null;
             dragPiece = null;
             dragLocation = null;
-
+            whiteCaptured.clear();
+            blackCaptured.clear();
             historyText.setText(historyBuilder.toString());
             notificationLabel.setText("Game loaded.");
             updateTurnLabel();
+            updateCapturedDisplay();
             repaint();
 
             return true;
@@ -582,7 +651,9 @@ public class BoardPanel extends JPanel {
         selectedSquare = null;
         dragPiece = null;
         dragLocation = null;
-
+        
+        System.arraycopy(previousState.castlingRights, 0, castlingRights, 0, castlingRights.length);
+        enPassantTarget = previousState.enPassantTarget;
         historyText.setText("");
         for (GameState state : moveHistory) {
             appendHistory(formatMoveNotation(state.move.piece, state.move.from, state.move.to, state.move.captured != null));
@@ -667,5 +738,9 @@ public class BoardPanel extends JPanel {
         g2.setColor(lightSquare ? Color.BLACK : Color.WHITE);
         FontMetrics metrics = g2.getFontMetrics();
         g2.drawString(dragPiece.getGlyph(), x + (TILE_SIZE - metrics.stringWidth(dragPiece.getGlyph())) / 2, y + ((TILE_SIZE - metrics.getHeight()) / 2) + metrics.getAscent());
+    }
+
+    private void updateCastlingRights(Point from, ChessPiece piece) {
+        ChessPieceLogic.updateCastlingRights(from, piece, castlingRights);
     }
 }
