@@ -78,4 +78,10 @@ public class ChessPieceLogic {
 
         return true;
     }
+
+    private static boolean isValidKnightMove(int dx, int dy) {
+        int absDx = Math.abs(dx);
+        int absDy = Math.abs(dy);
+        return (absDx == 2 && absDy == 1) || (absDx == 1 && absDy == 2);
+    }
 }
