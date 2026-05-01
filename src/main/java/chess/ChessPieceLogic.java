@@ -95,4 +95,15 @@ public class ChessPieceLogic {
 
         return isPathClear(board, from, to);
     }
+
+    private static boolean isValidQueenMove(ChessPiece[][] board, Point from, Point to) {
+        int dx = Math.abs(to.x - from.x);
+        int dy = Math.abs(to.y - from.y);
+
+        if ((dx == 0 || dy == 0) || (dx == dy)) {
+            return isPathClear(board, from, to);
+        }
+
+        return false;
+    }
 }
