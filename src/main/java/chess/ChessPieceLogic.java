@@ -117,4 +117,70 @@ public class ChessPieceLogic {
 
         return false;
     }
+
+    private static boolean isSquareAttacked(ChessPiece[][] board, Point square, PieceColor byColor) {
+        for (int rank = 0; rank < BOARD_SIZE; rank++) {
+            for (int file = 0; file < BOARD_SIZE; file++) {
+                ChessPiece piece = board[rank][file];
+                if (piece != null && piece.color == byColor) {
+                    Point from = new Point(file, rank);
+                    if (isValidPieceMove(board, from, square, piece)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public static Point findKing(ChessPiece[][] board, PieceColor color) {
+        for (int rank = 0; rank < BOARD_SIZE; rank++) {
+            for (int file = 0; file < BOARD_SIZE; file++) {
+                ChessPiece piece = board[rank][file];
+                if (piece != null && piece.type == PieceType.KING && piece.color == color) {
+                    return new Point(file, rank);
+                }
+            }
+        }
+        return null;
+    }
+
+    public static boolean isKingInCheck(ChessPiece[][] board, PieceColor kingColor) {
+        // Find the king
+        Point kingPos = findKing(board, kingColor);
+        if (kingPos == null) {
+            return false; // Should not happen
+        }
+
+        // Check if any enemy piece can attack the king
+        PieceColor enemyColor = kingColor.opposite();
+        for (int rank = 0; rank < BOARD_SIZE; rank++) {
+            for (int file = 0; file < BOARD_SIZE; file++) {
+                ChessPiece piece = board[rank][file];
+                if (piece != null && piece.color == enemyColor) {
+                    Point from = new Point(file, rank);
+                    if (isValidPieceMove(board, from, kingPos, piece)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+    
+    private static boolean wouldPutKingInCheck(ChessPiece[][] board, Point from, Point to, ChessPiece piece) {
+        // Simulate the move
+        ChessPiece capturedPiece = board[to.y][to.x];
+        board[to.y][to.x] = piece;
+        board[from.y][from.x] = null;
+
+        boolean inCheck = isKingInCheck(board, piece.color);
+
+        // Undo the move
+        board[from.y][from.x] = piece;
+        board[to.y][to.x] = capturedPiece;
+
+        return inCheck;
+    }
 }
